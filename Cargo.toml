@@ -1,0 +1,7 @@
+[package]
+name = "topper"
+version = "0.1.0"
+authors = ["Dave Bonner <dbonner@gmail.com"]
+
+[dependencies]
+regex = "1.0.0"
