@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Dave Bonner <dbonner@gmail.com"]
 
 [dependencies]
+libc = "0.2.42"
 regex = "1.0.0"
