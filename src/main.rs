@@ -5,6 +5,7 @@ use std::ffi::CStr;
 use std::fs;
 use std::io;
 use std::io::BufRead;
+use std::os::raw::c_char;
 use std::path::Path;
 //use std::slice;
 
@@ -30,21 +31,35 @@ fn main() -> Result<(), io::Error> {
             let uid_f = fs::File::open(&uid_path)?;
             let mut uid_reader = io::BufReader::new(uid_f);
             let mut line = String::new();
-            let line_len = uid_reader.read_line(&mut line)?;
+            uid_reader.read_line(&mut line)?;
+            let uid = line.trim().parse::<u32>().unwrap();
 
-            let mut username: CStr;
+            let mut username: String;
             unsafe {
-                let uid = line.trim().parse::<u32>().unwrap();
                 // TODO: allocate my own memory and use getpwuid_r
                 let passwd = libc::getpwuid(uid);
-                let name_len = libc::strnlen((*passwd).pw_name, line_len);
-                username = CStr::from_ptr((*passwd).pw_name);
-                //username = slice::from_raw_parts((*passwd).pw_name, name_len);
+                if passwd.is_null() {
+                    username = String::from("unknown");
+                } else {
+                    username = string_safe((*passwd).pw_name);
+                }
             }
             
-            println!("{:?} {:?}", path.to_str().unwrap(), username.to_str().unwrap());
+            println!("{:?} {:?}", path.to_str().unwrap(), username);
         }
     }
 
     Ok(())
+}
+
+fn string_safe(c_string: *const c_char) -> String {
+    // TODO: probably want to wrap the String in an error instead of returning empty string
+    if c_string.is_null() {
+        return String::from("");
+    }
+    else {
+        unsafe {
+            return CStr::from_ptr(c_string).to_string_lossy().into_owned();
+        }
+    }
 }
