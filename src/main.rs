@@ -19,37 +19,45 @@ use regex::Regex;
 
 
 fn main() -> Result<(), io::Error> {
-    let re = Regex::new(r"^\d+$").unwrap();
+    let field_split_re = Regex::new(r":\s+").unwrap();
+    let digits_re = Regex::new(r"^\d+$").unwrap();
     let proc_path = Path::new("/proc");
 
     for entry in fs::read_dir(proc_path)? {
         let entry = entry?;
         let path = entry.path();
 
-        if path.is_dir() && re.is_match(entry.file_name().to_str().unwrap()) {
-            let uid_path = path.join("loginuid");
-            let uid_f = fs::File::open(&uid_path)?;
-            let mut uid_reader = io::BufReader::new(uid_f);
-            let mut line = String::new();
-            uid_reader.read_line(&mut line)?;
-            let uid = line.trim().parse::<u32>().unwrap();
-
-            let mut username: String;
-            unsafe {
-                // TODO: allocate my own memory and use getpwuid_r
-                let passwd = libc::getpwuid(uid);
-                if passwd.is_null() {
-                    username = String::from("unknown");
-                } else {
-                    username = string_safe((*passwd).pw_name);
+        // TODO: collect data into {pid: {field: value, ...}} struct, print later
+        if path.is_dir() && 
+                digits_re.is_match(entry.file_name().to_str().unwrap()) {
+            let status_path = path.join("status");
+            let f = fs::File::open(&status_path)?;
+            let mut status_reader = io::BufReader::new(f);
+            for line in status_reader.lines() {
+                let line = line.unwrap();
+                let fields: Vec<&str> = field_split_re.splitn(line.trim(), 2).collect();
+                if fields[0] == "Name" {
+                    println!("{} {}", entry.file_name().to_str().unwrap(),
+                             fields[1]);
                 }
             }
-            
-            println!("{:?} {:?}", path.to_str().unwrap(), username);
         }
     }
 
     Ok(())
+}
+
+fn uid_to_username(uid: u32) -> String {
+    let username: String;
+
+    // TODO: allocate my own memory and use getpwuid_r
+    let passwd = unsafe { libc::getpwuid(uid) };
+    if passwd.is_null() {
+        username = String::from("unknown");
+    } else {
+        username = string_safe(unsafe { (*passwd).pw_name });
+    }
+    return username;
 }
 
 fn string_safe(c_string: *const c_char) -> String {
