@@ -1,13 +1,13 @@
 extern crate libc;
 extern crate regex;
 
+use std::collections::HashMap;
 use std::ffi::CStr;
 use std::fs;
 use std::io;
 use std::io::BufRead;
 use std::os::raw::c_char;
 use std::path::Path;
-//use std::slice;
 
 use regex::Regex;
 
@@ -26,6 +26,7 @@ fn main() -> Result<(), io::Error> {
     for entry in fs::read_dir(proc_path)? {
         let entry = entry?;
         let path = entry.path();
+        let mut map: HashMap<String, String> = HashMap::new();
 
         // TODO: collect data into {pid: {field: value, ...}} struct, print later
         if path.is_dir() && 
@@ -36,11 +37,11 @@ fn main() -> Result<(), io::Error> {
             for line in status_reader.lines() {
                 let line = line.unwrap();
                 let fields: Vec<&str> = field_split_re.splitn(line.trim(), 2).collect();
-                if fields[0] == "Name" {
-                    println!("{} {}", entry.file_name().to_str().unwrap(),
-                             fields[1]);
-                }
+                map.insert(fields[0].to_string(), fields[1].to_string());
             }
+            println!("{} {}",
+                     entry.file_name().to_str().unwrap(),
+                     map.get("Name").unwrap());
         }
     }
 
