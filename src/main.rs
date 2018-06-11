@@ -35,13 +35,31 @@ fn main() -> Result<(), io::Error> {
             let f = fs::File::open(&status_path)?;
             let mut status_reader = io::BufReader::new(f);
             for line in status_reader.lines() {
-                let line = line.unwrap();
-                let fields: Vec<&str> = field_split_re.splitn(line.trim(), 2).collect();
-                map.insert(fields[0].to_string(), fields[1].to_string());
+                match line {
+                    Ok(l) => {
+                        let l = l.trim();
+                        let fields: Vec<&str> = field_split_re.splitn(l, 2).collect();
+                        let key = fields[0];
+                        let value = match key {
+                            "VmSize" | "VmRSS" => {
+                                let val = fields[1].trim();
+                                let parts: Vec<&str> = val.split_whitespace().collect();
+                                parts[0]
+                            },
+                            _ => fields[1],
+                        };
+                        map.insert(key.to_string().clone(), value.to_string().clone());
+                    },
+                    Err(_e) => break // TODO: log error
+                };
             }
-            println!("{} {}",
-                     entry.file_name().to_str().unwrap(),
-                     map.get("Name").unwrap());
+            println!(
+                "{} {} {} {}",
+                entry.file_name().to_str().unwrap(),
+                map.get("Name").unwrap(),
+                map.get("VmSize").unwrap(),
+                map.get("VmRSS").unwrap(),
+            );
         }
     }
 
